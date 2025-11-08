@@ -1,0 +1,2 @@
+fastmcp==v2.12.5
+pywin32>=305  # This includes both win32com and pythoncom

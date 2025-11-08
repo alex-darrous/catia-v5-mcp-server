@@ -1,0 +1,18 @@
+{
+  "name": "catia-v5-mcp-server",
+  "displayName": "CATIA V5 MCP Server",
+  "description": "Launches the CATIA V5 MCP server (stdio transport).",
+  "transport": "stdio",
+  "command": [
+    "D:/hadi/github/catia-v5-mcp-server/.venv/Scripts/python.exe",
+    "-u",
+    "mcp_server.py"
+  ],
+  "cwd": "${workspaceFolder}",
+  "env": {},
+  "autoRestart": true,
+  "tools": {
+    "toolsFile": "mcp_server.py",
+    "discovery": "decorators"
+  }
+}
