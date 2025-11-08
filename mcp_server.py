@@ -335,7 +335,7 @@ def close_document(document_name: str):
     return f"Document not found: {document_name}"
 
 @app.tool("create_sketch")
-def create_sketch(plane: str):
+def create_sketch(plane: str, name: str = None):
     """Create a new sketch on specified plane"""
     catia = get_catia_application()
     part_doc = catia.ActiveDocument
@@ -353,7 +353,17 @@ def create_sketch(plane: str):
     ref_plane = plane_map[plane]
     
     sketch = sketches.Add(ref_plane)
-    return f"Created sketch on {plane} plane"
+    # Attempt to set the sketch name if provided
+    if name:
+        try:
+            # try common name setters
+            setattr(sketch, 'Name', name)
+        except Exception:
+            try:
+                sketch.set_Name(name)
+            except Exception:
+                pass
+    return f"Created sketch on {plane} plane" + (f" with name {name}" if name else "")
 
 @app.tool("create_pad")
 def create_pad(length: float):
@@ -415,6 +425,76 @@ def update_part():
     part = part_doc.Part
     part.Update()
     return "Part updated successfully"
+
+
+
+@app.tool("create_rectangle")
+def create_rectangle(x, y, width, height, centered=True):
+    catia = get_catia_application()
+    part_doc = catia.ActiveDocument
+    part = part_doc.Part
+    bodies = part.Bodies
+    body = bodies.Item(1)
+    sketches = body.Sketches
+
+    # Get the current (last) sketch
+    sketch = sketches.Item(sketches.Count)
+    # Make sure the sketch is the in-work object and open it for edition
+    part.InWorkObject = sketch
+    factory = sketch.OpenEdition()
+
+    # Calculate corner coordinates
+    if centered:
+        x1 = x - width / 2
+        y1 = y - height / 2
+        x2 = x + width / 2
+        y2 = y + height / 2
+    else:
+        x1 = x
+        y1 = y
+        x2 = x + width
+        y2 = y + height
+
+    # Create four lines to form a rectangle
+    # (Using the factory returned by OpenEdition)
+    _ = factory.CreatePoint(x1, y1)
+    line1 = factory.CreateLine(x1, y1, x2, y1)  # Bottom
+    line2 = factory.CreateLine(x2, y1, x2, y2)  # Right
+    line3 = factory.CreateLine(x2, y2, x1, y2)  # Top
+    line4 = factory.CreateLine(x1, y2, x1, y1)  # Left
+
+    # Optional: set ReportName (left as-is for debugging/traceability)
+    try:
+        line1.ReportName = 1
+        line2.ReportName = 2
+        line3.ReportName = 3
+        line4.ReportName = 4
+    except Exception:
+        # Some CATIA objects may not expose ReportName; ignore if unavailable
+        pass
+
+    # Close sketch edition and update part
+    try:
+        sketch.CloseEdition()
+    except Exception:
+        # If CloseEdition isn't available or fails, continue — the next
+        # operations will most likely raise a descriptive COM error.
+        pass
+    try:
+        part.Update()
+    except Exception:
+        pass
+
+    result = {
+        "message": f"Created rectangle at ({x}, {y}) with width={width}mm, height={height}mm",
+        "centered": centered,
+        "corners": {
+            "bottom_left": [x1, y1],
+            "top_right": [x2, y2]
+        }
+    }
+    return result
+
 
 @app.tool("execute_macro")
 def execute_macro(macro_path: str, module_name: str, function_name: str):
